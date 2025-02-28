@@ -8,7 +8,6 @@ import {
   ScrollView,
   Image,
   Platform,
-  Dimensions,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import MapView, { Marker } from "react-native-maps";
@@ -17,16 +16,42 @@ import * as Location from "expo-location";
 import * as FileSystem from "expo-file-system";
 import { usePost } from "../context/PostContext";
 
-// Predefined categories
 const CATEGORIES = [
-        "Technical",
-        "Parking",
-        "Electrical & Lighting",
-        "Academics & Administration",
-        "Sanitation",
-        "Others",
-  
+  "Technical",
+  "Parking",
+  "Electrical & Lighting",
+  "Academics & Administration",
+  "Sanitation",
+  "Others",
 ];
+
+const CAMPUS_POLYGON = [
+  [19.022028, 72.869722], // Northwest
+  [19.021528, 72.872333], // Northeast
+  [19.0211667, 72.8722222], 
+  [19.020861, 72.871222], // Southeast
+  [19.0205556, 72.8705556], 
+  [19.020833, 72.869556], // Southwest
+  [19.022028, 72.869722], // Close polygon
+];
+
+const isPointInPolygon = (point, polygon) => {
+  const x = point.latitude;
+  const y = point.longitude;
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i][0];
+    const yi = polygon[i][1];
+    const xj = polygon[j][0];
+    const yj = polygon[j][1];
+
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+};
 
 const CreatePostScreen = ({ navigation }) => {
   const [title, setTitle] = useState("");
@@ -34,24 +59,22 @@ const CreatePostScreen = ({ navigation }) => {
   const [image, setImage] = useState(null);
   const [tags, setTags] = useState("");
   const [location, setLocation] = useState(null);
-  const [category, setCategory] = useState(CATEGORIES[0]); // Default to first category
+  const [category, setCategory] = useState(CATEGORIES[0]);
   const { createPost } = usePost();
 
   const [mapRegion, setMapRegion] = useState({
-    latitude: 37.78825,
-    longitude: -122.4324,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
+    latitude: 19.021363,
+    longitude: 72.870755,
+    latitudeDelta: 0.001,
+    longitudeDelta: 0.001,
   });
 
   useEffect(() => {
     (async () => {
-      // Request permissions for media library
       if (Platform.OS !== "web") {
-        const { status } =
-          await ImagePicker.requestMediaLibraryPermissionsAsync();
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== "granted") {
-          alert("Sorry, we need camera roll permissions to make this work!");
+          alert("Camera roll permissions required!");
         }
       }
     })();
@@ -59,13 +82,6 @@ const CreatePostScreen = ({ navigation }) => {
 
   const pickImage = async () => {
     try {
-      const { status } =
-        await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== "granted") {
-        alert("Sorry, we need camera roll permissions to make this work!");
-        return;
-      }
-
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -79,8 +95,7 @@ const CreatePostScreen = ({ navigation }) => {
         if (result.assets[0].base64) {
           base64Image = result.assets[0].base64;
         } else {
-          const fileUri = result.assets[0].uri;
-          const base64 = await FileSystem.readAsStringAsync(fileUri, {
+          const base64 = await FileSystem.readAsStringAsync(result.assets[0].uri, {
             encoding: FileSystem.EncodingType.Base64,
           });
           base64Image = base64;
@@ -88,44 +103,64 @@ const CreatePostScreen = ({ navigation }) => {
         setImage(`data:image/jpeg;base64,${base64Image}`);
       }
     } catch (error) {
-      console.error("Error:", error);
       alert("Error picking image");
     }
   };
 
   const getLocation = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      alert("Permission to access location was denied");
-      return;
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        alert("Location permission required");
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      
+      const userPoint = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude
+      };
+
+      if (!isPointInPolygon(userPoint, CAMPUS_POLYGON)) {
+        alert("You must be on campus to submit reports");
+        return;
+      }
+
+      const address = await Location.reverseGeocodeAsync({
+        latitude: userPoint.latitude,
+        longitude: userPoint.longitude,
+      });
+
+      const locationData = {
+        ...userPoint,
+        address: address[0] ? 
+          `${address[0].name || ''} ${address[0].street || ''}, ${address[0].city || ''}`.trim() 
+          : "Campus Location"
+      };
+
+      setLocation(locationData);
+      setMapRegion({
+        ...userPoint,
+        latitudeDelta: 0.001,
+        longitudeDelta: 0.001,
+      });
+
+    } catch (error) {
+      alert("Error getting location");
     }
-
-    let location = await Location.getCurrentPositionAsync({});
-    let address = await Location.reverseGeocodeAsync({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    });
-
-    const newLocation = {
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-      address: address[0]
-        ? `${address[0].street}, ${address[0].city}`
-        : "Unknown location",
-    };
-
-    setLocation(newLocation);
-    setMapRegion({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-      latitudeDelta: 0.0922,
-      longitudeDelta: 0.0421,
-    });
   };
 
   const handleSubmit = async () => {
-    if (!title || !description || !image || !location || !category) {
+    if (!title || !description || !image || !location) {
       alert("Please fill all required fields");
+      return;
+    }
+
+    if (!isPointInPolygon(location, CAMPUS_POLYGON)) {
+      alert("Location must be within campus boundaries");
       return;
     }
 
@@ -135,147 +170,129 @@ const CreatePostScreen = ({ navigation }) => {
       image,
       location,
       category,
-      tags: tags.split(",").map((tag) => tag.trim()),
+      tags: tags.split(",").map(tag => tag.trim()),
     };
 
     try {
-      console.log("Submitting post with data:", postData);
       const result = await createPost(postData);
-      console.log("Create post result:", result);
-
       if (result.success) {
-        alert("Post created successfully!");
         navigation.navigate("Profile");
+        alert("Report submitted successfully!");
       } else {
-        alert(result.message || "Failed to create post");
+        throw new Error(result.message);
       }
     } catch (error) {
-      console.error("Error creating post:", error);
-      alert("Failed to create post. Please try again.");
+      alert(error.message || "Submission failed");
     }
   };
 
-return (
-  <View style={styles.container}>
-    {/* Fixed Header */}
-    <View style={styles.headerContainer}>
-      <Text style={styles.header}>Create New Report</Text>
-    </View>
-
-    <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={true}
-    >
-      {/* Add paddingTop to avoid content overlapping with header */}
-      <View style={{ paddingTop: 60 }}>
-        <TextInput
-          style={styles.input}
-          placeholder="Title"
-          value={title}
-          onChangeText={setTitle}
-        />
-
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Description"
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={4}
-        />
-
-        {/* Category Picker */}
-        <View style={styles.pickerContainer}>
-          <Text style={styles.label}>Category:</Text>
-          <View style={styles.pickerWrapper}>
-            <Picker
-              selectedValue={category}
-              onValueChange={(itemValue) => setCategory(itemValue)}
-              style={styles.picker}
-              dropdownIconColor="#333"
-            >
-              {CATEGORIES.map((cat) => (
-                <Picker.Item key={cat} label={cat} value={cat} />
-              ))}
-            </Picker>
-          </View>
-        </View>
-
-        <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-          <Text style={styles.buttonText}>Pick an image</Text>
-        </TouchableOpacity>
-        {image && <Image source={{ uri: image }} style={styles.preview} />}
-
-        <TouchableOpacity style={styles.locationButton} onPress={getLocation}>
-          <Text style={styles.buttonText}>Get Current Location</Text>
-        </TouchableOpacity>
-
-        {location && (
-          <>
-            <Text style={styles.locationText}>
-              Location: {location.address}
-            </Text>
-            <View style={styles.mapContainer}>
-              <MapView style={styles.map} region={mapRegion}>
-                <Marker
-                  coordinate={{
-                    latitude: location.latitude,
-                    longitude: location.longitude,
-                  }}
-                  title="Report Location"
-                  description={location.address}
-                />
-              </MapView>
-            </View>
-          </>
-        )}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Tags (comma-separated)"
-          value={tags}
-          onChangeText={setTags}
-        />
-
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>Submit Report</Text>
-        </TouchableOpacity>
+  return (
+    <View style={styles.container}>
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>Create New Report</Text>
       </View>
-    </ScrollView>
-  </View>
-);
+
+      <ScrollView
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ paddingTop: 60 }}>
+          <TextInput
+            style={styles.input}
+            placeholder="Report Title"
+            value={title}
+            onChangeText={setTitle}
+          />
+
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Detailed Description"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={4}
+          />
+
+          <View style={styles.pickerContainer}>
+            <Text style={styles.label}>Category:</Text>
+            <View style={styles.pickerWrapper}>
+              <Picker
+                selectedValue={category}
+                onValueChange={setCategory}
+                dropdownIconColor="#333"
+              >
+                {CATEGORIES.map((cat) => (
+                  <Picker.Item key={cat} label={cat} value={cat} />
+                ))}
+              </Picker>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
+            <Text style={styles.buttonText}>Attach Photo</Text>
+          </TouchableOpacity>
+          {image && <Image source={{ uri: image }} style={styles.preview} />}
+
+          <TouchableOpacity style={styles.locationButton} onPress={getLocation}>
+            <Text style={styles.buttonText}>Set Location</Text>
+          </TouchableOpacity>
+
+          {location && (
+            <>
+              <Text style={styles.locationText}>
+                📍 {location.address}
+              </Text>
+              <View style={styles.mapContainer}>
+                <MapView style={styles.map} region={mapRegion}>
+                  <Marker
+                    coordinate={location}
+                    title="Report Location"
+                    description={location.address}
+                  />
+                </MapView>
+              </View>
+            </>
+          )}
+
+          <TextInput
+            style={styles.input}
+            placeholder="Tags (comma separated)"
+            value={tags}
+            onChangeText={setTags}
+          />
+
+          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+            <Text style={styles.submitButtonText}>Submit Report</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#E5E9F2",
+  },
   headerContainer: {
     position: "absolute",
     top: 0,
     width: "100%",
     backgroundColor: "#E5E9F2",
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    zIndex: 1000,
-
-  },
-
-  scrollView: {
-    marginTop: 30, 
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#E5E9F2",
-  },
-  contentContainer: {
     padding: 20,
-    paddingBottom: 100, // Add extra padding at bottom for bottom tabs
+    zIndex: 1000,
   },
   header: {
     fontSize: 24,
     fontWeight: "600",
     color: "#235DFF",
-    marginBottom: 10,
     marginTop: 28,
+  },
+  contentContainer: {
+    marginTop: 40,
+    padding: 25,
+    paddingBottom: 100,
   },
   input: {
     backgroundColor: "white",
@@ -287,56 +304,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   textArea: {
-    backgroundColor: "white",
     height: 100,
     textAlignVertical: "top",
   },
   pickerContainer: {
     marginBottom: 15,
-    ...Platform.select({
-      ios: {
-        marginTop: -10, // Adjust this value as needed
-      },
-      android: {
-        marginTop: 0, // Adjust this value as needed
-      },
-    }),
-  },
-  label: {
-    fontSize: 16,
-    marginBottom: 8,
-    color: "#333",
-    fontWeight: "500",
   },
   pickerWrapper: {
     borderWidth: 1,
     borderColor: "#ddd",
     borderRadius: 8,
     backgroundColor: "#fff",
-    ...Platform.select({
-      ios: {
-        paddingHorizontal: 12,
-        marginBottom: 10,
-      },
-      android: {
-        paddingHorizontal: 0,
-      },
-    }),
-  },
-  picker: {
-    ...Platform.select({
-      ios: {
-        height: 50,
-        paddingBottom: 200,
-      },
-      android: {
-        height: 50,
-      },
-    }),
-  },
-  pickerItem: {
-    fontSize: 16,
-    color: "#333",
   },
   imageButton: {
     backgroundColor: "#235DFF",
@@ -353,41 +331,38 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "white",
     textAlign: "center",
-    fontSize: 16,
     fontWeight: "bold",
   },
   preview: {
     width: "100%",
     height: 200,
     marginBottom: 15,
-    borderRadius: 16,
+    borderRadius: 8,
   },
   locationText: {
-    marginBottom: 15,
-    fontSize: 16,
+    marginBottom: 10,
     color: "#666",
+  },
+  mapContainer: {
+    height: 200,
+    borderRadius: 8,
+    overflow: "hidden",
+    marginBottom: 15,
+  },
+  map: {
+    ...StyleSheet.absoluteFillObject,
   },
   submitButton: {
     backgroundColor: "#28a745",
     padding: 15,
     borderRadius: 8,
-    marginVertical: 20,
+    marginVertical: 10,
   },
   submitButtonText: {
     color: "white",
     textAlign: "center",
-    fontSize: 18,
     fontWeight: "bold",
-  },
-  mapContainer: {
-    height: 200,
-    marginBottom: 15,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  map: {
-    width: "100%",
-    height: "100%",
+    fontSize: 16,
   },
 });
 
