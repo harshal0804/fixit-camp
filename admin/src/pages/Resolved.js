@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Trash2, Upload, Calendar, MapPin } from 'lucide-react';
+import { Trash2, Calendar, MapPin, ImagePlus } from 'lucide-react';
 import config from "../config";
 import "../components/Dashboard.css";
 import { Button, Modal } from "react-bootstrap";
 import { usePost } from "../context/PostContext";
-import { useDropzone } from "react-dropzone";
 import { Alert } from "react-bootstrap";
+import axios from "axios";
 
 const Resolved = () => {
   const [resolvedPosts, setResolvedPosts] = useState([]);
@@ -13,9 +13,13 @@ const Resolved = () => {
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
-  const { deletePost } = usePost();
-  const [image, setImage] = useState(null);
+  usePost();
   const [expandedPosts, setExpandedPosts] = useState(new Set());
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedPostId, setSelectedPostId] = useState(null);
 
   const fetchResolvedPosts = async () => {
     try {
@@ -47,31 +51,10 @@ const Resolved = () => {
     return new Date(dateString).toLocaleString();
   };
 
-  const [stats, setStats] = useState({ totalPosts: 0, totalUsers: 0 });
+  // eslint-disable-next-line no-empty-pattern
+  const [] = useState({ totalPosts: 0, totalUsers: 0 });
+  // eslint-disable-next-line no-unused-vars
   const [reportedPosts, setReportedPosts] = useState([]);
-
-  const fetchData = async () => {
-    try {
-      const [statsResponse, postsResponse] = await Promise.all([
-        fetch(`${config.API_URL}/admin/stats`, {
-          credentials: "include",
-        }),
-        fetch(`${config.API_URL}/admin/reported-posts`, {
-          credentials: "include",
-        }),
-      ]);
-
-      const statsData = await statsResponse.json();
-      const postsData = await postsResponse.json();
-
-      setStats(statsData);
-      setReportedPosts(postsData.posts || []);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleDelete = (post) => {
     setSelectedPost(post);
@@ -102,17 +85,66 @@ const Resolved = () => {
     }
   };
 
+  const handleFileSelect = (postId, event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setSelectedPostId(postId);
+      setShowImageModal(true);
+    }
+  };
+
+  const handleImageUpload = async () => {
+    if (!selectedFile || !selectedPostId) return;
+  
+    setUploading(true);
+    setUploadError(null);
+  
+    try {
+      // Convert image to Base64
+      const reader = new FileReader();
+      reader.readAsDataURL(selectedFile);
+      reader.onloadend = async () => {
+        const base64Image = reader.result; // Base64 string
+        console.log("Base64 Image:", base64Image);
+  
+        const requestBody = {
+          solutionImage: base64Image, // Send in required format
+        };
+  
+        // Make PUT request using Axios
+        const response = await axios.put(
+          `${config.API_URL}/auth/posts/${selectedPostId}/solution-image`,
+          requestBody,
+          {
+            withCredentials: true,
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+  
+        if (response.status !== 200) {
+          throw new Error("Failed to upload solution image");
+        }
+  
+        await fetchResolvedPosts();
+        setShowImageModal(false);
+        setSelectedFile(null);
+        setSelectedPostId(null);
+      };
+    } catch (error) {
+      console.error("Error uploading solution image:", error);
+      setUploadError("Failed to upload solution image");
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+
   useEffect(() => {
     fetchResolvedPosts();
   }, []);
-
-  const { getRootProps, getInputProps } = useDropzone({
-    accept: "image/*",
-    onDrop: (acceptedFiles) => {
-      const file = acceptedFiles[0];
-      setImage(URL.createObjectURL(file));
-    },
-  });
 
   const toggleDescription = (postId, e) => {
     e.stopPropagation();
@@ -141,7 +173,7 @@ const Resolved = () => {
           <div 
             key={post._id} 
             className="card" 
-            style={{ 
+            style={{  
               width: '350px',
               borderRadius: '16px',
               overflow: 'hidden',
@@ -208,40 +240,7 @@ const Resolved = () => {
                 </small>
               </div>
 
-            {post.image && (
-                <div className="mb-3">
-                  <img
-                    src={post.image}
-                    alt="Report"
-                    style={{
-                      width: '100%',
-                      height: '200px',
-                      objectFit: 'cover',
-                      borderRadius: '12px'
-                    }}
-                  />
-                </div>
-              )}
-
               <div className="d-flex gap-2 mt-3">
-                <div {...getRootProps()} style={{ flex: 1 }}>
-                  <input {...getInputProps()} />
-                  <Button 
-                    variant="light"
-                    className="w-100 d-flex align-items-center gap-2"
-                    style={{ 
-                      borderRadius: '8px',
-                      border: '1px solid #e5e7eb',
-                      padding: '8px 16px',
-                      color: '#374151',
-                      backgroundColor: '#f9fafb'
-                    }}
-                  >
-                    <Upload size={16} />
-                    <span style={{ fontSize: '0.875rem' }}>Upload After Image</span>
-                  </Button>
-                </div>
-
                 <Button 
                   variant="danger"
                   onClick={() => handleDelete(post)}
@@ -260,22 +259,40 @@ const Resolved = () => {
                 >
                   <Trash2 size={16} />
                 </Button>
-              </div>
-
-              {image && (
-                <div className="mt-3">
-                  <img
-                    src={image}
-                    alt="Preview"
+                
+                <Button
+                  variant="primary"
+                  style={{ 
+                    borderRadius: '8px',
+                    padding: '8px',
+                    width: '36px',
+                    height: '36px',
+                    backgroundColor: '#3b82f6',
+                    border: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: 'unset',
+                    position: 'relative'
+                  }}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileSelect(post._id, e)}
                     style={{
+                      opacity: 0,
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
                       width: '100%',
-                      height: '200px',
-                      objectFit: 'cover',
-                      borderRadius: '12px'
+                      height: '100%',
+                      cursor: 'pointer'
                     }}
                   />
-                </div>
-              )}
+                  <ImagePlus size={16} />
+                </Button>
+              </div>
             </div>
           </div>
         ))}
@@ -294,6 +311,34 @@ const Resolved = () => {
           </Button>
           <Button variant="danger" onClick={confirmDelete}>
             Delete
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <Modal show={showImageModal} onHide={() => setShowImageModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Upload After Image</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedFile && (
+            <div>
+              <p>Selected file: {selectedFile.name}</p>
+              {uploadError && (
+                <Alert variant="danger">{uploadError}</Alert>
+              )}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowImageModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleImageUpload}
+            disabled={uploading}
+          >
+            {uploading ? 'Uploading...' : 'Upload Image'}
           </Button>
         </Modal.Footer>
       </Modal>
