@@ -87,7 +87,9 @@ app.use(
 // Passport initialization
 app.use(passport.initialize());
 app.use(passport.session());
-
+app.get("/",(req,res)=>{
+  res.send("helo");
+})
 // Routes configuration
 app.use("/admin", adminRoutes); // Admin routes
 app.use("/auth", authRoutes); // Authentication routes
