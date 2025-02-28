@@ -15,19 +15,35 @@ const port = 3000;
 
 const app = express();
 
+async function main() {
+  try {//mongodb://localhost:27017/
+    // await mongoose.connect("mongodb://localhost:27017/first");
+    // console.log("Database connected successfully");
+
+    await mongoose.connect("mongodb+srv://hackethon34:RrDWj2mdz6IhQd1I@cluster0.btq7k.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
+    console.log("Database connected successfully");
+  } catch (error) {
+    console.error("Database connection error:", error);
+  }
+}
+
+
+  main().then(()=>{
+    console.log("db connect")
+  }).catch(err=>console.log(err))
 // MongoDB connection setup
-const mongoURI = "mongodb://localhost:27017/test1"; // Replace with your MongoDB URI
-mongoose
-  .connect(mongoURI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    console.log("MongoDB connected");
-  })
-  .catch((err) => {
-    console.error("MongoDB connection error:", err);
-  });
+// const mongoURI = "mongodb://localhost:27017/test1"; // Replace with your MongoDB URI
+// mongoose
+//   .connect(mongoURI, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+//   })
+//   .then(() => {
+//     console.log("MongoDB connected");
+//   })
+//   .catch((err) => {
+//     console.error("MongoDB connection error:", err);
+//   });
 
 // View engine setup (EJS)
 app.set("view engine", "ejs");

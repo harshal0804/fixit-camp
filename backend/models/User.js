@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
         validator: function (v) {
           return /^\d{10}$/.test(v);
         },
-        message: "Please enter a valid 12-digit Aadhar number",
+        message: "Please enter a valid 10-digit Aadhar number",
       },
     },
     email: {

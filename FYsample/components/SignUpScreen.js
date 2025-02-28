@@ -89,8 +89,8 @@ const SignUpScreen = ({ navigation }) => {
           <TextInput
             style={styles.aadInput}
             placeholder="Enter your Roll number"
-            keyboardType="numeric"
-            maxLength={12} // Restrict input to 12 digits
+            keyboardType="alphanumeric"
+            maxLength={10} // Restrict input to 12 digits
             value={aadharNumber} // Assume you have state for aadharNumber
             onChangeText={setAadharNumber} // Assume setAadharNumber updates the state
           />

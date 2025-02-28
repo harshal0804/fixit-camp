@@ -203,7 +203,7 @@ const StatusUpdateScreen = ({ route }) => {
           <View style={styles.afterImageContainer}>
             <Text style={styles.afterImageTitle}>Proof:</Text>
             <Image
-              source={{ uri: post.afterImage }}
+              source={{ uri: post.SolutionImage }}
               style={styles.afterImage}
             />
           </View>
