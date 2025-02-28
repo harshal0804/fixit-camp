@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
       validate: {
         validator: function (v) {
-          return /^\d{12}$/.test(v);
+          return /^\d{10}$/.test(v);
         },
         message: "Please enter a valid 12-digit Aadhar number",
       },

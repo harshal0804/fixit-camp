@@ -10,6 +10,9 @@ const postSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    SolutionImage: {
+      type: String,
+    },
     image: {
       type: String,
       required: true,

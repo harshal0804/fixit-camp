@@ -84,6 +84,7 @@ router.post("/", ensureAuthenticated, async (req, res) => {
       },
       tags,
       category,
+      SolutionImage:"",
       userId: req.user._id,
       username: req.user.username || "Anonymous User",
       status: "pending",
@@ -427,5 +428,37 @@ router.get("/:postId/reports", ensureAuthenticated, async (req, res) => {
     res.status(500).json({ message: "Error fetching post reports" });
   }
 });
+// Update the solution image for a post
+router.put("/:postId/solution-image",  async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { solutionImage } = req.body;
+
+    if (!solutionImage) {
+      return res.status(400).json({ message: "Solution image URL is required" });
+    }
+
+    const post = await Post.findById(postId);
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    // Only allow the admin to update the solution image
+    // if (req.user.role !== "admin") {
+    //   return res
+    //     .status(403)
+    //     .json({ message: "Only admins can update the solution image" });
+    // }
+
+    post.SolutionImage = solutionImage;
+    await post.save();
+
+    res.json({ message: "Solution image updated successfully", post });
+  } catch (error) {
+    console.error("Error updating solution image:", error);
+    res.status(500).json({ message: "Error updating solution image" });
+  }
+});
+
 
 module.exports = router;
