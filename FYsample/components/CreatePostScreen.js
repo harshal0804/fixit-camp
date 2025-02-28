@@ -8,6 +8,7 @@ import {
   ScrollView,
   Image,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { Picker } from "@react-native-picker/picker";
 import MapView, { Marker } from "react-native-maps";
@@ -15,6 +16,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import * as FileSystem from "expo-file-system";
 import { usePost } from "../context/PostContext";
+import axios from "axios";
 
 const CATEGORIES = [
   "Technical",
@@ -53,13 +55,149 @@ const isPointInPolygon = (point, polygon) => {
   return inside;
 };
 
+// Function to verify image content using Gemini 2.0 Flash API
+const verifyImageContent = async (base64Image) => {
+  try {
+    // Get API key from environment variables or config
+    const API_KEY = "AIzaSyCMjtUg_MYXt1gwUpo9vNxGz2YUb8d26jE" // Set this in your .env file
+    const API_ENDPOINT = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent";
+    
+    // Truncate base64 for API request if needed
+    // Gemini 2.0 Flash has better handling of larger images but still good to reduce size
+    const truncatedBase64 = base64Image.substring(0, 50000);
+    
+    const response = await axios.post(
+      `${API_ENDPOINT}?key=${API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: "This is an image from a campus issue reporting app. Please analyze it and determine if it contains any inappropriate content such as nudity, adult content, violence, gore, or terrorist content. Only respond with 'SAFE' if the image is appropriate, or 'UNSAFE: [specific reason]' if it contains inappropriate content."
+              },
+              {
+                inline_data: {
+                  mime_type: "image/jpeg",
+                  data: truncatedBase64
+                }
+              }
+            ]
+          }
+        ],
+        generation_config: {
+          temperature: 0,
+          max_output_tokens: 50
+        }
+      },
+      {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      }
+    );
+    
+    // Parse Gemini API response
+    const result = response.data.candidates[0].content.parts[0].text.trim();
+    
+    if (result.startsWith("UNSAFE")) {
+      return {
+        safe: false,
+        reason: result.substring(8) // Extract reason after "UNSAFE: "
+      };
+    } else {
+      return {
+        safe: true,
+        reason: ""
+      };
+    }
+  } catch (error) {
+    console.error("Image verification error:", error);
+    
+    // More specific error handling for better debugging
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error("API Error Response:", error.response.data);
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error("No response received:", error.request);
+    }
+    
+    // In case of API error, default to manual review message
+    return {
+      safe: false,
+      reason: "Could not verify image content. Please ensure the image is appropriate."
+    };
+  }
+};
+
+// Alternative function using Gemini 1.5 Flash if 2.0 is not available
+const verifyImageWithGemini15 = async (base64Image) => {
+  try {
+    const API_KEY = "AIzaSyCMjtUg_MYXt1gwUpo9vNxGz2YUb8d26jE";
+    const API_ENDPOINT = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
+    
+    const response = await axios.post(
+      `${API_ENDPOINT}?key=${API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: "This is an image from a campus issue reporting app. Please analyze it and determine if it contains any inappropriate content such as nudity, adult content, violence, gore, or terrorist content. Only respond with 'SAFE' if the image is appropriate, or 'UNSAFE: [specific reason]' if it contains inappropriate content."
+              },
+              {
+                inline_data: {
+                  mime_type: "image/jpeg",
+                  data: base64Image.substring(0, 50000)
+                }
+              }
+            ]
+          }
+        ],
+        generation_config: {
+          temperature: 0,
+          max_output_tokens: 50
+        }
+      },
+      {
+        headers: {
+          "Content-Type": "application/json"
+        }
+      }
+    );
+    
+    const result = response.data.candidates[0].content.parts[0].text.trim();
+    
+    if (result.startsWith("UNSAFE")) {
+      return {
+        safe: false,
+        reason: result.substring(8) // Extract reason after "UNSAFE: "
+      };
+    } else {
+      return {
+        safe: true,
+        reason: ""
+      };
+    }
+  } catch (error) {
+    console.error("Gemini 1.5 API error:", error);
+    return {
+      safe: false,
+      reason: "Could not verify image content. Please ensure the image is appropriate."
+    };
+  }
+};
+
 const CreatePostScreen = ({ navigation }) => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState(null);
+  const [imageBase64, setImageBase64] = useState(null);
   const [tags, setTags] = useState("");
   const [location, setLocation] = useState(null);
   const [category, setCategory] = useState(CATEGORIES[0]);
+  const [isVerifyingImage, setIsVerifyingImage] = useState(false);
   const { createPost } = usePost();
 
   const [mapRegion, setMapRegion] = useState({
@@ -91,7 +229,9 @@ const CreatePostScreen = ({ navigation }) => {
       });
 
       if (!result.canceled) {
+        setIsVerifyingImage(true);
         let base64Image;
+        
         if (result.assets[0].base64) {
           base64Image = result.assets[0].base64;
         } else {
@@ -100,10 +240,43 @@ const CreatePostScreen = ({ navigation }) => {
           });
           base64Image = base64;
         }
-        setImage(`data:image/jpeg;base64,${base64Image}`);
+        
+        // Verify image content
+        try {
+          // Try Gemini 2.0 Flash first
+          let verificationResult;
+          try {
+            verificationResult = await verifyImageContent(base64Image);
+          } catch (gemini2Error) {
+            console.log("Gemini 2.0 failed, trying Gemini 1.5:", gemini2Error);
+            // Fallback to Gemini 1.5 Flash if 2.0 fails
+            verificationResult = await verifyImageWithGemini15(base64Image);
+          }
+          
+          setIsVerifyingImage(false);
+          
+          if (!verificationResult.safe) {
+            alert(`Inappropriate content detected: ${verificationResult.reason}. Please select another image.`);
+            return;
+          }
+          
+          setImageBase64(base64Image);
+          setImage(`data:image/jpeg;base64,${base64Image}`);
+        } catch (verificationError) {
+          console.error("Verification failed with both Gemini models:", verificationError);
+          setIsVerifyingImage(false);
+          
+          // Show a confirmation dialog asking if the user wants to proceed
+          if (confirm("We couldn't automatically verify this image. Are you sure it's appropriate and relevant to your campus report?")) {
+            setImageBase64(base64Image);
+            setImage(`data:image/jpeg;base64,${base64Image}`);
+          }
+        }
       }
     } catch (error) {
-      alert("Error picking image");
+      setIsVerifyingImage(false);
+      alert("Error picking or verifying image");
+      console.error(error);
     }
   };
 
@@ -228,9 +401,23 @@ const CreatePostScreen = ({ navigation }) => {
             </View>
           </View>
 
-          <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-            <Text style={styles.buttonText}>Attach Photo</Text>
+          <TouchableOpacity 
+            style={styles.imageButton} 
+            onPress={pickImage}
+            disabled={isVerifyingImage}
+          >
+            <Text style={styles.buttonText}>
+              {isVerifyingImage ? "Verifying Image..." : "Attach Photo"}
+            </Text>
           </TouchableOpacity>
+          
+          {isVerifyingImage && (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" color="#235DFF" />
+              <Text style={styles.loaderText}>Verifying image content...</Text>
+            </View>
+          )}
+          
           {image && <Image source={{ uri: image }} style={styles.preview} />}
 
           <TouchableOpacity style={styles.locationButton} onPress={getLocation}>
@@ -261,7 +448,11 @@ const CreatePostScreen = ({ navigation }) => {
             onChangeText={setTags}
           />
 
-          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+          <TouchableOpacity 
+            style={styles.submitButton} 
+            onPress={handleSubmit}
+            disabled={isVerifyingImage}
+          >
             <Text style={styles.submitButtonText}>Submit Report</Text>
           </TouchableOpacity>
         </View>
@@ -363,6 +554,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  loaderContainer: {
+    alignItems: "center",
+    marginBottom: 15,
+  },
+  loaderText: {
+    marginTop: 10,
+    color: "#666",
+    fontSize: 14,
   },
 });
 

@@ -3,7 +3,7 @@ import { Trash2, Upload, Calendar, MapPin } from 'lucide-react';
 import config from "../config";
 import "../components/Dashboard.css";
 import { Button, Modal } from "react-bootstrap";
-import { usePost } from "context/PostContext";
+import { usePost } from "../context/PostContext";
 import { useDropzone } from "react-dropzone";
 import { Alert } from "react-bootstrap";
 
