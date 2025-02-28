@@ -59,7 +59,7 @@ const isPointInPolygon = (point, polygon) => {
 const verifyImageContent = async (base64Image) => {
   try {
     // Get API key from environment variables or config
-    const API_KEY = "AIzaSyCMjtUg_MYXt1gwUpo9vNxGz2YUb8d26jE" // Set this in your .env file
+    const API_KEY = "AIzaSyDAYA7L8JC7f4U5bOM7Ks-ejE1thVtBZhw" // Set this in your .env file
     const API_ENDPOINT = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent";
     
     // Truncate base64 for API request if needed
@@ -134,7 +134,7 @@ const verifyImageContent = async (base64Image) => {
 // Alternative function using Gemini 1.5 Flash if 2.0 is not available
 const verifyImageWithGemini15 = async (base64Image) => {
   try {
-    const API_KEY = "AIzaSyCMjtUg_MYXt1gwUpo9vNxGz2YUb8d26jE";
+    const API_KEY = "AIzaSyDAYA7L8JC7f4U5bOM7Ks-ejE1thVtBZhw";
     const API_ENDPOINT = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent";
     
     const response = await axios.post(
@@ -280,28 +280,88 @@ const CreatePostScreen = ({ navigation }) => {
     }
   };
 
-  const getLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        alert("Location permission required");
-        return;
-      }
+ // Function to get location with iOS compatibility fix
+const getLocation = async () => {
+  try {
+    // Check for location permissions first
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      alert("Location permission required");
+      return;
+    }
 
+    // For iOS, we need to check location services are enabled
+    const hasServicesEnabled = await Location.hasServicesEnabledAsync();
+    if (!hasServicesEnabled) {
+      alert("Please enable location services in your device settings");
+      return;
+    }
+
+    // Set loading state if needed
+    // setIsGettingLocation(true); // Uncomment if you want to add a loading indicator
+
+    // iOS sometimes needs a location watch before getting position
+    // Using a timeout and high accuracy for better iOS reliability
+    const locationSubscription = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.BestForNavigation,
+        timeInterval: 1000,
+        distanceInterval: 1
+      },
+      (locationData) => {
+        // Successfully received location update
+        processLocation(locationData);
+        
+        // Stop watching after we get a reading
+        if (locationSubscription) {
+          locationSubscription.remove();
+        }
+      }
+    );
+
+    // Also try the standard getCurrentPosition as fallback
+    // This ensures we get a location through at least one method
+    try {
       const location = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
+        maximumAge: 10000, // Accept a reading from the last 10 seconds
+        timeout: 20000     // Wait up to 20 seconds for a reading
       });
       
-      const userPoint = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude
-      };
+      processLocation(location);
+    } catch (innerError) {
+      console.log("getCurrentPosition fallback error:", innerError);
+      // The watchPosition above may still succeed, so we don't alert here
+    }
+  } catch (error) {
+    console.error("Location error:", error);
+    alert("Error getting location. Please check if location services are enabled.");
+    // setIsGettingLocation(false); // Uncomment if you added a loading indicator
+  }
+};
 
-      if (!isPointInPolygon(userPoint, CAMPUS_POLYGON)) {
-        alert("You must be on campus to submit reports");
-        return;
-      }
+// Helper function to process location data
+const processLocation = (locationData) => {
+  // setIsGettingLocation(false); // Uncomment if you added a loading indicator
+  
+  if (!locationData || !locationData.coords) {
+    alert("Could not determine your location. Please try again.");
+    return;
+  }
+  
+  const userPoint = {
+    latitude: locationData.coords.latitude,
+    longitude: locationData.coords.longitude
+  };
 
+  if (!isPointInPolygon(userPoint, CAMPUS_POLYGON)) {
+    alert("You must be on campus to submit reports");
+    return;
+  }
+
+  // Get address for the location
+  (async () => {
+    try {
       const address = await Location.reverseGeocodeAsync({
         latitude: userPoint.latitude,
         longitude: userPoint.longitude,
@@ -320,11 +380,21 @@ const CreatePostScreen = ({ navigation }) => {
         latitudeDelta: 0.001,
         longitudeDelta: 0.001,
       });
-
-    } catch (error) {
-      alert("Error getting location");
+    } catch (addressError) {
+      console.error("Error getting address:", addressError);
+      // Even if address lookup fails, we can still use the coordinates
+      setLocation({
+        ...userPoint,
+        address: "Campus Location"
+      });
+      setMapRegion({
+        ...userPoint,
+        latitudeDelta: 0.001,
+        longitudeDelta: 0.001,
+      });
     }
-  };
+  })();
+};
 
   const handleSubmit = async () => {
     if (!title || !description || !image || !location) {
