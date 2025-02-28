@@ -1,0 +1,314 @@
+.dashboard {
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+.loading,
+.error {
+  text-align: center;
+  padding: 20px;
+  font-size: 1.2em;
+}
+
+.error {
+  color: #ff0000;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  padding: 1.5rem;
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.stat-card h3 {
+  font-size: 1.1rem;
+  margin: 0;
+  font-weight: 500;
+}
+
+.stat-number {
+  font-size: 2.5rem;
+  font-weight: 600;
+  margin: 1rem 0 0 0;
+}
+
+.map-container {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.popup-content {
+  padding: 10px;
+}
+
+.status-select {
+  margin-top: 10px;
+  padding: 5px;
+  width: 100%;
+  border-radius: 4px;
+}
+
+.status-select.pending {
+  border-color: #ffa500;
+}
+
+.status-select.in-progress {
+  border-color: #2196f3;
+}
+
+.status-select.resolved {
+  border-color: #4caf50;
+}
+
+.custom-marker {
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.reports-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding: 16px 24px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.reports-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2c2c2c;
+}
+
+.back-button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: #f0f2f5;
+  color: #1a1a1a;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 50px;
+  width: fit-content;
+  justify-content: center;
+}
+
+.back-button:hover {
+  background: #e4e6e9;
+  transform: translateX(-2px);
+}
+
+.reports-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.report-card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border: 1px solid #eee;
+}
+
+.report-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.report-card h3 {
+  margin: 0 0 16px 0;
+  color: #1a1a1a;
+  font-size: 1.2rem;
+}
+
+.report-card p {
+  margin: 8px 0;
+  color: #4a4a4a;
+  line-height: 1.5;
+}
+
+.report-card strong {
+  color: #2c2c2c;
+  font-weight: 600;
+}
+
+.report-card.pending {
+  border-left: 4px solid #ffa500;
+}
+
+.report-card.in-progress {
+  border-left: 4px solid #2196f3;
+}
+
+.report-card.resolved {
+  border-left: 4px solid #4caf50;
+}
+
+.report-card.spam {
+  border-left: 4px solid #dc3545;
+}
+
+.report-image {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-top: 16px;
+  transition: transform 0.3s ease;
+  cursor: pointer;
+}
+
+.report-image:hover {
+  transform: scale(1.02);
+}
+
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.status-indicator.pending {
+  background-color: #fff3e0;
+  color: #f57c00;
+}
+
+.status-indicator.in-progress {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.status-indicator.resolved {
+  background-color: #e8f5e9;
+  color: #388e3c;
+}
+
+.status-indicator.spam {
+  background-color: #ffebee;
+  color: #dc3545;
+}
+
+.reports-map-container {
+  margin-top: 32px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid #eee;
+}
+
+@media (max-width: 768px) {
+  .reports-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .reports-list {
+    grid-template-columns: 1fr;
+  }
+
+  .report-card {
+    padding: 20px;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.report-card {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.delete-button {
+  margin-top: 16px;
+  padding: 8px 16px;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  background-color: #dc3545;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-button:hover {
+  background-color: #c82333;
+}
+
+.delete-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.2);
+}
+
+.college-marker {
+  z-index: 1000;
+}
+
+.leaflet-container {
+  height: 70vh;
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Optional: Add a border around the restricted area */
+.leaflet-container:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 2px solid #012970;
+  pointer-events: none;
+  border-radius: 12px;
+}
+
+/* Add styles for the geofence circle */
+.leaflet-interactive {
+  transition: all 0.3s ease;
+}
+
+.leaflet-interactive:hover {
+  fillOpacity: 0.2;
+  strokeWidth: 3;
+}

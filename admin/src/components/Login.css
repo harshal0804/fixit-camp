@@ -1,0 +1,128 @@
+/* Import Nunito font */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap');
+
+/* Apply Nunito font globally */
+* {
+  font-family: 'Nunito', sans-serif;
+}
+
+.navbar {
+  background-color: white;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid #e5e7eb;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+}
+
+.navbar-brand {
+  color: #012970;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.login-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 100vh;
+  /* background-color: #dde7f5; */
+  background-color: #eee;
+  padding: 0 100px;
+  padding-top: 64px;
+  /* Height of navbar */
+}
+
+.login-content {
+  flex: 1;
+  max-width: 700px;
+  padding-left: 100px;
+}
+
+.login-content h1 {
+  font-size: 64px;
+  font-weight: bold;
+  color: #212529;
+  margin-bottom: 1.5rem;
+}
+
+.login-content p {
+  color: #757F8E;
+  line-height: 1.6;
+}
+
+.login-box {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 620px;
+  height: 410px;
+  margin-right: 250px;
+}
+
+.admin-selector {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  border: 1px solid #f97316;
+  width: 207px;
+  height: 56px;
+}
+
+.admin-selector span {
+  color: #f97316;
+  font-weight: 500;
+  margin-left: 8px;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+button {
+  margin-top: 26px;
+  width: 74px;
+  height: 38px;
+  background-color: #f97316;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover {
+  background-color: #ea580c;
+}
+
+.error-message {
+  color: #dc2626;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+/* Remove the old radio group styles */
+.radio-group {
+  display: none;
+}

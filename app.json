@@ -1,0 +1,51 @@
+{
+    "expo": {
+        "name": "FYsample",
+        "slug": "FYsample",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "icon": "./assets/icon.png",
+        "userInterfaceStyle": "light",
+        "splash": {
+            "image": "./assets/splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#ffffff"
+        },
+        "assetBundlePatterns": [
+            "**/*"
+        ],
+        "plugins": [
+            [
+                "expo-image-picker",
+                {
+                    "photosPermission": "The app accesses your photos to let you share them with your friends."
+                }
+            ]
+        ],
+        "ios": {
+            "supportsTablet": true,
+            "infoPlist": {
+                "NSPhotoLibraryUsageDescription": "Allow $(PRODUCT_NAME) to access your photos",
+                "NSCameraUsageDescription": "Allow $(PRODUCT_NAME) to access your camera",
+                "NSMicrophoneUsageDescription": "Allow $(PRODUCT_NAME) to access your microphone",
+                "NSLocationWhenInUseUsageDescription": "Allow $(PRODUCT_NAME) to access your location"
+            }
+        },
+        "android": {
+            "adaptiveIcon": {
+                "foregroundImage": "./assets/adaptive-icon.png",
+                "backgroundColor": "#ffffff"
+            },
+            "permissions": [
+                "CAMERA",
+                "READ_EXTERNAL_STORAGE",
+                "WRITE_EXTERNAL_STORAGE",
+                "ACCESS_COARSE_LOCATION",
+                "ACCESS_FINE_LOCATION"
+            ]
+        },
+        "web": {
+            "favicon": "./assets/favicon.png"
+        }
+    }
+}
